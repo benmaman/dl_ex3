@@ -71,7 +71,92 @@ class LyricsGenerator(nn.Module):
         return (weight.new(self.num_layers, batch_size, self.hidden_dim).zero_(),
                 weight.new(self.num_layers, batch_size, self.hidden_dim).zero_())
 
-def generate_text(seed_text, model, max_length, vocab_size, word_to_idx, idx_to_word, word2vec, midi_embedding):
+class MergeLyricsGenerator(nn.Module):  
+    """
+    LSTM-based model for lyrics generation that processes text and MIDI features in parallel.
+    This model first processes word indices and MIDI features separately, then concatenates
+    the resulting features and feeds them into an LSTM to predict the next word in the sequence.
+    """
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers,midi_dim=50):
+        """    
+
+        Initializes the MergeModel with embedding layers for text and MIDI data,
+        an LSTM layer for sequence modeling, and a fully connected layer for output.
+
+        Args:
+            vocab_size (int): Size of the vocabulary (number of unique words).
+            embedding_dim (int): Dimension of the word and MIDI embeddings.
+            midi_dim (int): Input dimension of the MIDI features.
+            hidden_dim (int): Number of features in the hidden state of the LSTM.
+            num_layers (int): Number of recurrent layers in the LSTM.
+        """
+        super(MergeLyricsGenerator, self).__init__()
+        self.num_layers = num_layers
+        self.hidden_dim = hidden_dim
+        
+        # Embedding for words
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        
+        # Dense layer for MIDI processing
+        self.midi_dense = nn.Linear(midi_dim, 5)
+        #tbd add activation function
+
+    
+        # LSTM for combined features
+        self.lstm = nn.LSTM(embedding_dim+5, hidden_dim, num_layers, batch_first=True, dropout=0.2)
+        
+        # Output layer
+        self.fc = nn.Linear(hidden_dim, vocab_size)
+
+    def forward(self, word_embedded, midi_features, hidden):
+        """
+        Forward pass through the model.
+
+        Args:
+            word_embedded (torch.Tensor): Tensor containing word emdbeeded using word2vec (batch_size, seq_length).
+            midi_features (torch.Tensor): Tensor containing MIDI features (batch_size, midi_dim).
+            hidden (tuple): Tuple containing the initial hidden state and cell state for the LSTM.
+
+        Returns:
+            out (torch.Tensor): Tensor containing the output predictions (batch_size, seq_length, vocab_size).
+            hidden (tuple): Updated hidden state and cell state.
+        """
+        
+        # Process MIDI features
+        midi_processed = self.midi_dense(midi_features)  # Shape: (batch_size, embedding_dim)
+        midi_processed = midi_processed.unsqueeze(1).repeat(1, word_embedded.size(1), 1)
+        
+        # Combine word and MIDI features
+        combined = torch.cat((word_embedded, midi_processed), dim=2)  # Shape: (batch_size, seq_length, 2 * embedding_dim)
+        
+        # LSTM
+        out, hidden = self.lstm(combined, hidden)
+        
+        # Fully connected layer to vocab size
+        out = self.fc(out)
+        
+        return out, hidden
+
+
+
+    def init_hidden(self, batch_size):
+        """
+        Initializes the hidden state and cell state for the LSTM.
+
+        Args:
+            batch_size (int): The batch size used in training.
+
+        Returns:
+            tuple: Initialized hidden state and cell state tensors, each of shape (num_layers, batch_size, hidden_dim).
+        """
+        weight = next(self.parameters()).data
+        return (weight.new(self.num_layers, batch_size, self.hidden_dim).zero_(),
+                weight.new(self.num_layers, batch_size, self.hidden_dim).zero_())
+
+
+
+
+def generate_text(seed_text, model,sequence_length, max_length, vocab_size, word_to_idx, idx_to_word, word2vec, midi_embedding):
     """
     Generates text using the trained LSTM model starting from a seed text.
     
@@ -107,7 +192,7 @@ def generate_text(seed_text, model, max_length, vocab_size, word_to_idx, idx_to_
         generated_words.append(new_word)
 
         # Update x for the next prediction
-        input_text = generated_words[-5:]
+        input_text = generated_words[-sequence_length:]
         input_indices = [word2vec.wv[word] for word in input_text]
         x = torch.tensor([input_indices], dtype=torch.float32)  # Add batch dimension
 

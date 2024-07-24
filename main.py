@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-from model import LyricsGenerator, LyricsDataset,generate_text
+from models import LyricsGenerator, LyricsDataset,generate_text, MergeLyricsGenerator
 import os
 from sklearn.model_selection import train_test_split
 import mido
@@ -15,17 +15,17 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import numpy as np
 
 #editor_parameter
-embedding_dim = 50 #entities per word
-hidden_dim = 20
+embedding_dim = 300 #entities per word
+hidden_dim = 40
 num_layers = 2
-batch_size=5 
-sequence_length=3 #lenght of the input of the model
+batch_size=10 
+sequence_length=5 #lenght of the input of the model
 num_epochs = 10
 midi_dim = 50
 
 #1. Load your dataset
 data = pd.read_csv('lyrics_train_set.csv')
-data=data.iloc[:30,:]
+data=data.iloc[:,:]
 sentences = []
 
 midi_folder = "midi_files"
@@ -62,7 +62,7 @@ weights = torch.FloatTensor(word2vec.wv.vectors)
 
 
 
-train_data, val_data = train_test_split(data, test_size=0.2, random_state=42)
+train_data, val_data = train_test_split(data, test_size=0.1, random_state=42)
 
 
 
@@ -90,13 +90,14 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 #Parmas
 vocab_size = len(word_to_idx)
+# model = LyricsGenerator(vocab_size, embedding_dim+50, hidden_dim, num_layers)
 
-model = LyricsGenerator(vocab_size, embedding_dim, hidden_dim, num_layers, midi_dim)
+model = MergeLyricsGenerator(vocab_size, embedding_dim, hidden_dim, num_layers)
 model.embedding.weight = nn.Parameter(weights)
 model.embedding.weight.requires_grad = False  # Freeze the embeddings
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.001,weight_decay=1e-5)
 
 # Training loop
 for epoch in range(num_epochs):
@@ -115,8 +116,10 @@ for epoch in range(num_epochs):
         optimizer.step()
         total_loss += loss.item()
         hidden = tuple([h.detach() for h in hidden])
-
-    print(f'Epoch {epoch + 1}, Training Loss: {total_loss / len(train_loader)}')
+    #compute perpelexity
+    avg_training_loss = total_loss / len(train_loader)
+    train_perplexity = np.exp(avg_training_loss)
+    print(f'Epoch {epoch + 1}, Training Loss: {avg_training_loss}, Training Perplexity: {train_perplexity}')
 
     # Validation phase
     model.eval()
@@ -130,7 +133,10 @@ for epoch in range(num_epochs):
             loss = criterion(output, target_batch.view(-1))
             val_loss += loss.item()
 
-    print(f'Epoch {epoch + 1}, Validation Loss: {val_loss / len(val_loader)}')
+    avg_val_loss = val_loss / len(val_loader)
+    val_perplexity = np.exp(avg_val_loss)
+
+    print(f'Epoch {epoch + 1}, Validation Loss: {avg_val_loss}, Validation Perplexity: {val_perplexity}')
 
     # Generate text after each epoch
     seed_text = "another"
@@ -138,5 +144,5 @@ for epoch in range(num_epochs):
     song,singer = find_exact_index(data, last_midi_embedding)
     print(f"for melody: {song},{singer}:")
 
-    generated_text = generate_text(seed_text, model, 50, vocab_size, word_to_idx, idx_to_word, word2vec, last_midi_embedding)
+    generated_text = generate_text(seed_text, model,sequence_length, 50, vocab_size, word_to_idx, idx_to_word, word2vec, last_midi_embedding)
     print(f"Generated Text after Epoch {epoch + 1}: {generated_text}")
