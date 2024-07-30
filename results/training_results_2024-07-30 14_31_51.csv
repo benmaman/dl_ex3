@@ -1,0 +1,2 @@
+date,epochs,best_epoch,hidden_dim,lstm_layer,batch_size,sequence_length,learning_rate,dropout,model_name,midi_method,train_loss,validation_loss,train_perplexities,validation_perplexities
+2024-07-30 14:31:51,3,3,40,2,16,5,0.001,0.1,naive,modified,"[5.254288079211196, 4.666736944151838, 4.4680436289302925]","[5.269584624080886, 5.184640212197117, 5.1753659382386346]","[191.3851862501123, 106.35014915657426, 87.18598791285453]","[194.33522350596803, 178.50921279720868, 176.8613227569888]"

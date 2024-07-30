@@ -5,11 +5,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-from models import LyricsGenerator, LyricsDataset,generate_text, MergeLyricsGenerator
+from models import LyricsGenerator, LyricsDataset, MergeLyricsGenerator
 import os
 from sklearn.model_selection import train_test_split
 import mido
-from tools import low_case_name_file,generate_sequences,find_exact_index
+from tools import low_case_name_file,generate_sequences,find_exact_index,generate_text,preprocessing_lyrics
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from datetime import datetime
 import numpy as np
@@ -17,9 +17,9 @@ import itertools
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 
-param_grid={'batch_size':[16,64],
-            'sequence_length':[3,5],
-            'learning_rate':[0.0001,0.001],
+param_grid={'batch_size':[16],
+            'sequence_length':[5],
+            'learning_rate':[0.001],
             'dropout':[0.1]
 }
 
@@ -47,7 +47,7 @@ for batch_size, sequence_length, learning_rate, dropout in param_combinations:
     midi_dim = 50
     learning_rate=learning_rate
     dropout=dropout
-    model_name='merge' #model configure, can get 'naive' or 'merge'
+    model_name='naive' #model configure, can get 'naive' or 'merge'
     midi_method='modified' # midi configure, can get 'graph' or 'modified'
 
     #1. Load your dataset
@@ -76,33 +76,19 @@ for batch_size, sequence_length, learning_rate, dropout in param_combinations:
 
 
     ## 2.Embedding
+    
     # pre-processing 
-    for lyrics in data['lyrics']:
-        # Lowercase and remove characters between parentheses
-        cleaned_lyrics = lyrics.lower()
-        cleaned_lyrics = re.sub(r'\(.*?\)', '', cleaned_lyrics)
-        
-        # Split into words, then add 'eos' at the end
-        words = cleaned_lyrics.split()
-        words.append('eos')  # Append 'eos' as the end-of-sentence marker for the entire lyrics
-        sentences.append(words)
-        ###tbd- add padding
+    sentences=preprocessing_lyrics(data)
 
     #word2vect
     word2vec = Word2Vec(sentences, vector_size=embedding_dim, window=5, min_count=1, workers=4)
     word2vec.train(sentences, total_examples=len(sentences), epochs=10)
-
+    word2vec.save('results/word2vec.model')
     word_to_idx = {word: idx for idx, word in enumerate(word2vec.wv.index_to_key)}
     idx_to_word = {idx: word for word, idx in word_to_idx.items()}
     weights = torch.FloatTensor(word2vec.wv.vectors)
 
-
-
-
-
     train_data, val_data = train_test_split(data, test_size=0.1, random_state=42)
-
-
 
     # Generate sequences for training set
     train_input_vectors, train_target_indices, train_midi_sequences = generate_sequences(
