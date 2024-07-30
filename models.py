@@ -32,12 +32,12 @@ class LyricsGenerator(nn.Module):
     LSTM-based model for lyrics generation. This model uses an embedding layer followed by 
     an LSTM and a fully connected layer to predict the next word in the sequence.
     """
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers,dropout):
         super(LyricsGenerator, self).__init__()
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim , hidden_dim, num_layers, batch_first=True, dropout=0.2)
+        self.lstm = nn.LSTM(embedding_dim , hidden_dim, num_layers, batch_first=True, dropout=dropout)
         self.fc = nn.Linear(hidden_dim, vocab_size)
 
     def forward(self, x,midi, hidden):
@@ -77,7 +77,7 @@ class MergeLyricsGenerator(nn.Module):
     This model first processes word indices and MIDI features separately, then concatenates
     the resulting features and feeds them into an LSTM to predict the next word in the sequence.
     """
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers,midi_dim=50):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers,dropout,midi_dim=50):
         """    
 
         Initializes the MergeModel with embedding layers for text and MIDI data,
@@ -99,11 +99,12 @@ class MergeLyricsGenerator(nn.Module):
         
         # Dense layer for MIDI processing
         self.midi_dense = nn.Linear(midi_dim, 5)
-        #tbd add activation function
+        self.relu = nn.ReLU()
+
 
     
         # LSTM for combined features
-        self.lstm = nn.LSTM(embedding_dim+5, hidden_dim, num_layers, batch_first=True, dropout=0.2)
+        self.lstm = nn.LSTM(embedding_dim+5, hidden_dim, num_layers, batch_first=True, dropout=dropout)
         
         # Output layer
         self.fc = nn.Linear(hidden_dim, vocab_size)
@@ -124,6 +125,7 @@ class MergeLyricsGenerator(nn.Module):
         
         # Process MIDI features
         midi_processed = self.midi_dense(midi_features)  # Shape: (batch_size, embedding_dim)
+        midi_processed = self.relu(midi_processed)
         midi_processed = midi_processed.unsqueeze(1).repeat(1, word_embedded.size(1), 1)
         
         # Combine word and MIDI features

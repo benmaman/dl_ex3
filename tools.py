@@ -1,7 +1,7 @@
 import os
 import re
 import numpy 
-
+from models import *
 def generate_sequences(data, sequence_length, word2vec, word_to_idx):
     input_sequences = []
     target_sequences = []
@@ -63,6 +63,7 @@ def low_case_name_file(midi_folder):
 
 
 def find_exact_index(df, midi_embedding):
+
     """
     Find the exact index in the DataFrame that matches the given MIDI embedding.
 
