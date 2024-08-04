@@ -124,7 +124,7 @@ def max_pooling_to_size(embedding, desired_length):
 # %%-----------------------------main-------------------------------------------
 
 
-def main(file,trainsongs, testsongs, midi_data, verbose=False):
+def main_midi(file,trainsongs, testsongs, midi_data,dim_midi, verbose=False):
 
     artist, song = file.split('_-_')[0], file.split('_-_')[1].split('.mid')[0]
 
@@ -133,10 +133,10 @@ def main(file,trainsongs, testsongs, midi_data, verbose=False):
 
     # get the number of words in the lyrics
     try:
-        lyrics = train_songs[(trainsongs['singer'] == artist) & (trainsongs['song'] == song)]['lyrics']
+        lyrics = trainsongs[(trainsongs['singer'] == artist) & (trainsongs['song'] == song)]['lyrics']
     except  KeyError:
         try:
-            lyrics = test_songs[(testsongs['singer'] == artist) & (testsongs['song'] == song)]['lyrics']
+            lyrics = testsongs[(testsongs['singer'] == artist) & (testsongs['song'] == song)]['lyrics']
         except KeyError:
             print('song not found')
             return
@@ -182,11 +182,10 @@ def main(file,trainsongs, testsongs, midi_data, verbose=False):
     # Example embedding vector
     embedding = midi_features
 
-    # Define the desired final length
-    embedding_dim = 50
+
 
     # Apply max pooling to achieve the desired length
-    compressed_embedding = max_pooling_to_size(embedding, embedding_dim)
+    compressed_embedding = max_pooling_to_size(embedding, dim_midi)
     if verbose:
         print("Original embedding:", embedding)
         print("Compressed embedding:", compressed_embedding)
@@ -199,11 +198,19 @@ def main(file,trainsongs, testsongs, midi_data, verbose=False):
 
 
 
-# %%-----------------------------main-------------------------------------------
-if __name__ == "__main__":
+def midi_embed(embedding_dim,verbose=False):
+    """
+    Embeds MIDI files into a DataFrame.
+    Args:
+        embedding_dim (int): The dimension of the embedding vector.
+        train_songs (pd.DataFrame): The DataFrame containing the training songs data.
+        test_songs (pd.DataFrame): The DataFrame containing the test songs data.
+        midi_data (pretty_midi.PrettyMIDI): The MIDI data to be embedded.
+        verbose (bool, optional): Whether to print verbose output. Defaults to False.
+    Returns:
+        pd.DataFrame: The DataFrame containing the embedded MIDI data.
+    """
     
-    embedding_dim = 50 
-
     train_songs = pd.read_csv('lyrics_train_set.csv')
     test_songs = pd.read_csv('lyrics_test_set.csv')
 
@@ -231,7 +238,7 @@ if __name__ == "__main__":
                 print("\033[0m")
                     
                 continue
-            imbed_vec, artis_name, song_name = main(file, train_songs, test_songs, midi_data)
+            imbed_vec, artis_name, song_name = main_midi(file, train_songs, test_songs, midi_data, embedding_dim,verbose=verbose)
 
             row_data = list(imbed_vec) + [artis_name, song_name]
         
@@ -244,4 +251,8 @@ if __name__ == "__main__":
     # change the coloms to start from 1
     
     midi_df_embedding.to_csv(os.getcwd()+'/sinai_matched_embeddings.csv', index=False)
+    return midi_df_embedding
 
+
+if __name__ == '__main__':
+    midi_embed(50, verbose=True)

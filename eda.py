@@ -4,7 +4,14 @@ this script is used to do EDA for the lyrics data and the midi data
 
 """
 
-from imports import *
+import pandas as pd
+import numpy as np
+import pretty_midi  
+import matplotlib.pyplot as plt
+import re
+import seaborn as sns
+import os
+
 
 
 # %%-------------------------------lyrics data EDA--------------------------------
@@ -70,6 +77,7 @@ sns.histplot(lyricst['num_words'], kde=True)
 plt.title('Number of words in every song')
 plt.xlabel('Number of words')
 plt.ylabel('Frequency')
+plt.savefig('num_words.png',dpi=300)
 plt.show()
 
 # plot the average number of words in each sentence
@@ -78,6 +86,7 @@ sns.histplot(lyricst['avg_num_words_per_sentence'], kde=True)
 plt.title('Average number of words in every sentence per song')
 plt.xlabel('Average number of words')
 plt.ylabel('Frequency')
+plt.savefig('avg_num_words_per_sentence.png',dpi=300)
 plt.show()
 
 
@@ -90,6 +99,7 @@ plt.bar(dict_of_w.keys(), dict_of_w.values())
 plt.title('Top 10 words in the lyrics data')
 plt.xlabel('Words')
 plt.ylabel('Frequency')
+plt.savefig('top_10_words.png',dpi=300)
 plt.show()
 
 # plot dist of diffrent artists
@@ -100,6 +110,7 @@ sns.histplot(g_artist['counts'], kde=True)
 plt.title('Distribution of number of songs per artist')
 plt.xlabel('Number of songs')
 plt.ylabel('Frequency')
+plt.savefig('artist_dist.png',dpi=300)
 plt.show()
 
 # %%-------------------------------midi data EDA--------------------------------
@@ -132,6 +143,7 @@ sns.histplot(lengt_dict.values(), kde=True)
 plt.title('Length of the midi files')
 plt.xlabel('Length')
 plt.ylabel('Frequency')
+plt.savefig('length.png',dpi=300)
 plt.show()
 
 # plot the beats per minute
@@ -140,6 +152,7 @@ sns.histplot(beats_dict.values(), kde=True)
 plt.title('Beats per minute of the midi files')
 plt.xlabel('Beats per minute')
 plt.ylabel('Frequency')
+plt.savefig('beats.png',dpi=300)
 plt.show()
 
 # plot the tempo changes
@@ -148,6 +161,7 @@ sns.histplot(tempo_dict.values(), kde=True,bins=25)
 plt.title('number of tempo changes in the midi files')
 plt.xlabel('Number of tempo changes')
 plt.ylabel('Frequency')
+plt.savefig('tempo_changes.png',dpi=300)
 plt.show()
 
 
